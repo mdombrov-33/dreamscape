@@ -28,7 +28,7 @@ class Dream(Base):
         server_default=func.now(),  # Default to current time
     )
 
-    # For semantic search (we'll add embeddings later in Phase 4)
+    # For semantic search
     # embedding: Mapped[Vector] = mapped_column(Vector(1536), nullable=True)
 
     # Timestamps (automatically managed)
@@ -43,9 +43,8 @@ class Dream(Base):
         onupdate=func.now(),  # Updates automatically on change
     )
 
-
-# Relationship: One dream has many analyses
-analyses: Mapped[list["Analysis"]] = relationship(
-    back_populates="dream",
-    cascade="all, delete-orphan",  # Delete analyses if dream is deleted
-)
+    # Relationship: One dream has many analyses
+    analyses: Mapped[list["Analysis"]] = relationship(
+        back_populates="dream",
+        cascade="all, delete-orphan",
+    )

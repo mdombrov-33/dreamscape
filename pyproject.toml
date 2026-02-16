@@ -38,7 +38,9 @@ select = [
     "UP",  # pyupgrade (modern Python syntax)
     "B",   # flake8-bugbear (catches common bugs)
 ]
-ignore = []
+ignore = [
+    "B008",  # FastAPI uses function calls (Depends) in defaults for dependency injection
+]
 
 [tool.ruff.format]
 quote-style = "double"
