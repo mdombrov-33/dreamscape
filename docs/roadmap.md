@@ -2,247 +2,318 @@
 
 ## Vision
 
-A dream journal with multi-agent AI analysis and evaluation framework to measure which AI approaches work best for dream interpretation.
+**An AI evaluation platform that answers: "Which AI approach works best for dream interpretation?"**
+
+Test different models (GPT-4o, Claude, Qwen), prompt strategies (Jungian, Freudian, cognitive), and orchestration patterns (single vs multi-agent) to determine optimal configurations for quality and cost.
 
 ## Core User Flow
 
 ```
-1. User logs dream → 2. AI agents analyze → 3. User sees analyses → 4. User rates quality → 5. System learns
+1. User enters dream
+2. Select AI configuration (preset or custom models per agent)
+3. LangGraph orchestrates multi-agent workflow:
+   - Generalist extracts structure (symbols, emotions, themes)
+   - Specialists deep-dive in parallel
+   - Synthesizer combines into final interpretation
+4. User sees all analyses side-by-side
+5. User rates which was most helpful
+6. System learns optimal configurations
 ```
 
-### Detailed Flow
+---
 
-1. **User enters dream**: "I was flying over a city at night..."
-2. **System stores dream**: PostgreSQL + generate embedding (pgvector)
-3. **Multiple agents analyze** (in background):
-   - Symbol Detector Agent: Identifies recurring symbols
-   - Emotion Analyzer Agent: Detects emotional patterns
-   - Insight Generator Agent: Deep psychological interpretation
-4. **User sees all analyses** side-by-side in Gradio UI
-5. **User rates** which analysis was most helpful (1-5 stars)
-6. **Eval system tracks**:
-   - Which agent got highest ratings?
-   - Which prompts perform best?
-   - Cost vs quality tradeoffs
-7. **Semantic search**: Find similar past dreams by meaning
+## Phase 1: MVP ✅ COMPLETE
 
-## Features
+**Goal:** Basic dream journal with single AI agent
 
-### Phase 1: MVP (Core Dream Journal)
+### 1.1 Infrastructure ✅
+- [x] Docker Compose setup (PostgreSQL + Redis)
+- [x] FastAPI application structure
+- [x] Alembic migrations
+- [x] Database models (Dream, Analysis)
 
-**Goal**: Basic working dream journal with one AI agent
+### 1.2 Basic API ✅
+- [x] POST /dreams - Create dream
+- [x] GET /dreams - List dreams
+- [x] GET /dreams/{id} - Get dream with analyses
+- [x] Pydantic schemas
 
-#### 1.1 Database Models & Migrations
+### 1.3 First AI Agent ✅
+- [x] Ollama client (local LLM)
+- [x] BaseAgent interface
+- [x] SimpleDreamAnalyzer
+- [x] Streaming support
+- [x] Analysis service
 
-- [ ] Create `Dream` model (id, content, date, user_id, embedding)
-- [ ] Create `Analysis` model (id, dream_id, agent_name, content, created_at)
-- [ ] Setup Alembic migrations
-- [ ] Create initial migration
-
-**Files to create**:
-
-- `app/db/models/dream.py`
-- `app/db/models/analysis.py`
-- `alembic/` setup
-- `alembic/versions/001_initial.py`
-
-#### 1.2 Basic CRUD API
-
-- [ ] POST /dreams - Create dream
-- [ ] GET /dreams - List all dreams
-- [ ] GET /dreams/{id} - Get dream with analyses
-- [ ] Pydantic schemas for validation
-
-**Files to create**:
-
-- `app/schemas/dream.py` (DreamCreate, DreamRead)
-- `app/api/v1/dreams.py` (routes)
-- `app/services/dream_service.py` (business logic)
-
-#### 1.3 First AI Agent (Simple)
-
-- [ ] Create base agent interface
-- [ ] Implement simple analysis agent (uses Ollama/qwen2.5)
-- [ ] Trigger analysis on dream creation
-- [ ] Store analysis result
-
-**Files to create**:
-
-- `app/agents/base_agent.py` (abstract class)
-- `app/agents/simple_agent.py` (first implementation)
-- `app/services/analysis_service.py`
-
-#### 1.4 Simple Gradio UI
-
-- [ ] Dream entry form
-- [ ] Dream list view
-- [ ] Analysis display
-- [ ] Stream AI response in real-time
-
-**Files to create**:
-
-- `app/ui/gradio_app.py`
-- Mount in FastAPI: `app.mount("/ui", gradio_app)`
-
-**MVP Deliverable**: Enter dream → Get AI analysis → See in UI
+### 1.4 Gradio UI ✅
+- [x] Dream input form
+- [x] Streaming analysis display
+- [x] Past dreams table
+- [x] Mounted at /ui
 
 ---
 
-### Phase 2: Multi-Agent System 🤖
+## Phase 2: Multi-Agent LangGraph Workflow 🔄 IN PROGRESS
 
-**Goal**: Multiple agents analyze same dream, compare results
+**Goal:** Sequential agent orchestration with model swapping
 
-#### 2.1 Additional Agents
+### 2.1 LiteLLM Integration (Next - 1 hour)
+```bash
+Files to create:
+- app/core/litellm_client.py
+- Update agents to use LiteLLM
+```
 
-- [ ] Symbol detector agent (finds recurring symbols)
-- [ ] Emotion analyzer agent (emotional tone)
-- [ ] GPT-5 agent (high-quality insights)
-- [ ] Claude agent (alternative perspective)
+**What:**
+- [x] Add database fields (agent_type, model_used)
+- [ ] Install LiteLLM
+- [ ] Create unified client (Ollama, OpenAI, Anthropic, OpenRouter)
+- [ ] Config for API keys
+- [ ] Test: Qwen vs GPT-4o-mini vs Claude Haiku
 
-#### 2.2 Agent Orchestration (LangGraph)
-
-- [ ] Setup LangGraph workflow
-- [ ] Parallel agent execution
-- [ ] Aggregate results
-
-#### 2.3 UI Improvements
-
-- [ ] Tabs for each agent's analysis
-- [ ] Side-by-side comparison view
-- [ ] Highlight differences
-
-**Deliverable**: One dream → Multiple analyses from different agents
+**Why:** Foundation for model swapping and cost tracking
 
 ---
 
-### Phase 3: Evaluation Framework 📊
+### 2.2 Generalist Agent (1 hour)
+```bash
+Files to create:
+- app/agents/generalist_agent.py
+```
 
-**Goal**: Measure which agents/prompts work best
+**What:**
+- [ ] Create GeneralistAgent
+- [ ] Extracts structured data:
+  ```python
+  {
+    "symbols": ["flying", "forest", "shadows"],
+    "emotions": ["anxiety", "freedom", "fear"],
+    "themes": ["escape", "pursuit", "unknown"],
+    "key_phrases": ["whispered my name"]
+  }
+  ```
+- [ ] Outputs both structured + prose analysis
 
-#### 3.1 User Ratings
-
-- [ ] Add rating system (1-5 stars per analysis)
-- [ ] Store ratings in `AnalysisRating` model
-- [ ] UI for rating
-
-#### 3.2 Quality Metrics
-
-- [ ] LLM-as-judge evaluator (GPT-5 rates other analyses)
-- [ ] Consistency evaluator (same dream → similar output?)
-- [ ] Hallucination detector (are claims supported?)
-
-#### 3.3 Eval Dashboard
-
-- [ ] Agent performance leaderboard
-- [ ] Cost vs quality charts
-- [ ] Prompt comparison
-
-**Files to create**:
-
-- `app/evals/evaluators/quality_eval.py`
-- `app/evals/evaluators/consistency_eval.py`
-- `app/evals/metrics/rating_metrics.py`
-- `app/ui/eval_dashboard.py`
-
-**Deliverable**: Data on which agents perform best
+**Prompt:** "Extract symbols, emotions, and themes from this dream. Be comprehensive but structured."
 
 ---
 
-### Phase 4: Semantic Search 🔍
+### 2.3 Specialist Agents (2 hours)
+```bash
+Files to create:
+- app/agents/symbol_specialist.py
+- app/agents/emotion_specialist.py
+- app/agents/theme_specialist.py
+```
 
-**Goal**: Find similar dreams by meaning
+**What:**
+- [ ] **SymbolSpecialist:** Deep dive on each symbol
+  - Input: Original dream + generalist's symbol list
+  - Output: Detailed meaning of each symbol
 
-#### 4.1 Embeddings
+- [ ] **EmotionSpecialist:** Emotional analysis
+  - Input: Original dream + generalist's emotion list
+  - Output: Emotional scores, conflicts, arcs
 
-- [ ] Generate embeddings on dream creation (OpenAI/local model)
-- [ ] Store in `dream.embedding` (pgvector)
-- [ ] Index for fast search
-
-#### 4.2 Search API
-
-- [ ] POST /dreams/search - Semantic search endpoint
-- [ ] Returns similar dreams by meaning
-- [ ] Similarity score
-
-#### 4.3 UI Integration
-
-- [ ] Search bar in Gradio
-- [ ] Similar dreams section
-- [ ] "Dreams like this" suggestions
-
-**Deliverable**: Search "falling nightmares" → Find similar dreams
+- [ ] **ThemeSpecialist:** Thematic interpretation
+  - Input: Original dream + generalist's theme list
+  - Output: Deep exploration of themes
 
 ---
 
-### Phase 5: Advanced Features 🚀
+### 2.4 Synthesizer Agent (1 hour)
+```bash
+Files to create:
+- app/agents/synthesizer_agent.py
+```
 
-#### 5.1 Background Jobs
+**What:**
+- [ ] Combines all specialist analyses
+- [ ] Creates unified interpretation
+- [ ] Highlights key insights
+- [ ] Input: All previous analyses
+- [ ] Output: Final comprehensive interpretation
 
-- [ ] Setup arq (async task queue with Redis)
-- [ ] Queue dream analysis (don't block API)
+---
+
+### 2.5 LangGraph Workflow (2 hours)
+```bash
+Files to create:
+- app/workflows/dream_analysis.py
+```
+
+**What:**
+- [ ] Install LangGraph
+- [ ] Define workflow:
+  ```python
+  Dream → Generalist → [Symbol, Emotion, Theme] (parallel) → Synthesizer
+  ```
+- [ ] State management
+- [ ] Error handling
 - [ ] Progress tracking
 
-#### 5.2 Caching
+---
 
-- [ ] Redis cache for LLM responses
-- [ ] Cache analyses (same dream → cached result)
-- [ ] LiteLLM prompt caching
+### 2.6 Updated UI (3 hours)
+```bash
+Files to update:
+- app/ui/gradio_app.py
+```
 
-#### 5.3 Golden Dataset
+**What:**
+- [ ] Model selection dropdowns (before entering dream)
+  ```
+  Generalist: [Qwen | GPT-4o-mini | Claude Haiku]
+  Symbol: [Qwen | GPT-4o-mini | Claude Haiku]
+  Emotion: [Qwen | GPT-4o-mini | Claude Haiku]
+  Theme: [Qwen | GPT-4o-mini | Claude Haiku]
+  Synthesizer: [Qwen | GPT-4o-mini | Claude Haiku]
 
-- [ ] Curate test dreams with expected analyses
-- [ ] Regression testing (did prompt change break quality?)
-- [ ] Automated eval runs
+  Or: [Preset: All Qwen (Free) ▼]
+  ```
 
-#### 5.4 API Improvements
+- [ ] Side-by-side analysis display:
+  ```
+  ┌─────────────┬─────────────┬─────────────┐
+  │ Symbol      │ Emotion     │ Theme       │
+  │ Analysis    │ Analysis    │ Analysis    │
+  └─────────────┴─────────────┴─────────────┘
 
-- [ ] Authentication (user accounts)
-- [ ] Rate limiting
-- [ ] Pagination
-- [ ] Filtering/sorting
+  ┌─────────────────────────────────────────┐
+  │ Final Synthesis                         │
+  └─────────────────────────────────────────┘
+  ```
+
+- [ ] Progress indicator (which agent is working)
+- [ ] Cost estimate display
 
 ---
 
-## Development Phases Summary
+## Phase 3: Evaluation Framework (5-7 hours)
 
-| Phase                    | Goal                            | Time Estimate |
-| ------------------------ | ------------------------------- | ------------- |
-| **Phase 1: MVP**         | Basic dream journal + one agent | 2-3 days      |
-| **Phase 2: Multi-Agent** | Multiple agents, LangGraph      | 2-3 days      |
-| **Phase 3: Evals**       | Evaluation framework            | 2-3 days      |
-| **Phase 4: Search**      | Semantic search                 | 1-2 days      |
-| **Phase 5: Advanced**    | Production features             | Ongoing       |
+**Goal:** Track which configurations work best
+
+### 3.1 Rating System (2 hours)
+- [ ] Add rating UI (5 stars per analysis)
+- [ ] Store ratings in database:
+  ```python
+  AnalysisRating:
+    - analysis_id
+    - rating (1-5)
+    - feedback_text (optional)
+  ```
+- [ ] Overall helpfulness rating
+
+### 3.2 Cost Tracking (1 hour)
+- [ ] Track tokens used per analysis
+- [ ] Calculate cost per configuration
+- [ ] Display cost in UI
+
+### 3.3 Analytics Dashboard (2 hours)
+- [ ] New Gradio tab: "📊 Analytics"
+- [ ] Show:
+  - Avg rating per agent type
+  - Avg rating per model
+  - Cost vs quality chart
+  - Most popular configurations
+  - Win rate per agent
+
+### 3.4 A/B Testing (2 hours)
+- [ ] Random configuration assignment
+- [ ] Statistical significance tests
+- [ ] Recommendation engine: "Use GPT-4o for synthesis, Qwen for extraction"
+
+---
+
+## Phase 4: Advanced Features (Optional)
+
+### 4.1 Embeddings & Semantic Search
+- [ ] Generate embeddings for dreams
+- [ ] Store in pgvector
+- [ ] "Find similar dreams" feature
+
+### 4.2 Pattern Tracking (Requires Auth)
+- [ ] Simple authentication
+- [ ] Track symbols across YOUR dreams
+- [ ] "Flying appears in 40% of your dreams"
+- [ ] Emotional trends over time
+
+### 4.3 Custom Prompts
+- [ ] UI for editing agent prompts
+- [ ] Save custom configurations
+- [ ] Share configurations
+
+### 4.4 Batch Analysis
+- [ ] Analyze multiple dreams
+- [ ] Export to CSV/JSON
+- [ ] Bulk evaluation
 
 ---
 
-## Starting Point: Phase 1.1 - Database Models
+## Technical Decisions
 
-**Next immediate steps:**
+### Why This Order?
 
-1. **Create database models** (Dream, Analysis)
-2. **Setup Alembic** for migrations
-3. **Create first migration** (creates tables)
-4. **Test** - can we create a dream in the DB?
+1. **LiteLLM first** → Foundation for everything
+2. **Agents next** → Core functionality
+3. **LangGraph** → Orchestration
+4. **UI** → Make it usable
+5. **Evaluation** → Learn from data
+
+### Models to Support
+
+**Free (Ollama):**
+- Qwen 2.5:7b (current)
+- Llama 3.2
+- Mistral
+
+**Paid (via LiteLLM):**
+- **OpenAI:** GPT-4o ($2.50/1M in, $10/1M out), GPT-4o-mini ($0.15/1M in, $0.60/1M out)
+- **Anthropic:** Claude 3.5 Sonnet ($3/1M in, $15/1M out), Claude 3.5 Haiku ($0.25/1M in, $1.25/1M out)
+- **OpenRouter:** Access to 100+ models with unified billing
+
+### Prompt Strategies
+
+1. **General:** Balanced interpretation
+2. **Jungian:** Archetypes, collective unconscious
+3. **Freudian:** Unconscious desires, symbolism
+4. **Cognitive:** Problem-solving, memory processing
+5. **Gestalt:** Present experience, awareness
 
 ---
 
-## Tech Stack Reminder
+## Success Metrics
 
-**Already Setup** ✅:
+**Phase 2 Success:**
+- Multi-agent workflow running
+- Model swapping working
+- UI showing all analyses
 
-- FastAPI (async API)
-- PostgreSQL + pgvector (database + vector search)
-- Redis (caching)
-- Docker Compose (local dev)
-- SQLAlchemy 2.0 (async ORM)
-- Alembic (migrations)
+**Phase 3 Success:**
+- 100+ rated dream analyses
+- Clear winner: "GPT-4o Jungian gets 4.5/5 avg"
+- Cost analysis: "Optimal config: $0.01/dream, 4.2/5 rating"
 
-**To Add**:
-
-- Gradio (UI)
-- LangGraph (agent orchestration)
-- LiteLLM (unified LLM API)
-- OpenAI/Anthropic SDKs (AI models)
-- arq (background jobs)
+**Overall Success:**
+- Answered: "Which AI is best for dreams?"
+- Built evaluation framework
+- Learned LangGraph + LiteLLM
+- Had fun with AI! 🌙
 
 ---
+
+## Current Status
+
+**Completed:**
+- ✅ Phase 1 (MVP with single agent)
+
+**In Progress:**
+- 🔄 Phase 2.1 (LiteLLM integration)
+
+**Next Up:**
+- Generalist agent
+- Specialist agents
+- LangGraph workflow
+- Updated UI
+
+**Timeline:** Phase 2 = ~10 hours of focused work
