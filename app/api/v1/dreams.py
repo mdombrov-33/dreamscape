@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.schemas.dream import DreamCreate, DreamRead, DreamUpdate
+from app.services.analysis_service import AnalysisService
 from app.services.dream_service import DreamService
 
 router = APIRouter()
@@ -16,16 +17,27 @@ async def create_dream(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a new dream.
+    Create a new dream and analyze it with AI.
 
     - **content**: The dream description (required, 1-10000 chars)
     - **dream_date**: When the dream occurred (optional, defaults to now)
+
+    Returns the dream with AI analysis.
     """
-    service = DreamService(db)
-    return await service.create_dream(
+    dream_service = DreamService(db)
+    created_dream = await dream_service.create_dream(
         content=dream.content,
         dream_date=dream.dream_date,
     )
+
+    analysis_service = AnalysisService(db)
+    await analysis_service.analyze_dream_with_agent(
+        dream_id=created_dream.id,
+        dream_content=created_dream.content,
+    )
+
+    dream_with_analyses = await dream_service.get_dream_with_analyses(created_dream.id)
+    return dream_with_analyses
 
 
 @router.get("/dreams", response_model=list[DreamRead])

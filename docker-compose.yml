@@ -12,6 +12,7 @@ services:
       - POSTGRES_PASSWORD=dreamscape
       - POSTGRES_DB=dreamscape
       - REDIS_HOST=redis
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     depends_on:
       postgres:
         condition: service_healthy

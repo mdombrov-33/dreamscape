@@ -1,14 +1,8 @@
-"""
-Pydantic schemas for Dream API.
-
-- DreamCreate: What clients send when creating a dream
-- DreamRead: What we return when reading a dream
-- DreamUpdate: What clients send when updating a dream
-"""
-
 from datetime import datetime
 
 from pydantic import BaseModel, Field
+
+from app.schemas.analysis import AnalysisRead
 
 
 class DreamCreate(BaseModel):
@@ -35,6 +29,7 @@ class DreamRead(BaseModel):
     dream_date: datetime
     created_at: datetime
     updated_at: datetime
+    analyses: list[AnalysisRead] = []  # Include analyses if loaded
 
     # Tell Pydantic to convert SQLAlchemy models to this schema
     model_config = {"from_attributes": True}
