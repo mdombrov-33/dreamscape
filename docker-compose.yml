@@ -1,0 +1,54 @@
+services:
+  app:
+    build: .
+    container_name: dreamscape-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app  # Mount code for hot reload
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=dreamscape
+      - POSTGRES_PASSWORD=dreamscape
+      - POSTGRES_DB=dreamscape
+      - REDIS_HOST=redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    container_name: dreamscape-postgres
+    environment:
+      POSTGRES_USER: dreamscape
+      POSTGRES_PASSWORD: dreamscape
+      POSTGRES_DB: dreamscape
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dreamscape"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.6.0-alpine
+    container_name: dreamscape-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

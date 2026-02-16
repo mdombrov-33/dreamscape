@@ -1,0 +1,41 @@
+# Development-only services (DB + Redis)
+# Use this when running the app on your host for faster iteration
+#
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   uv run uvicorn app.main:app --reload
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    container_name: dreamscape-postgres
+    environment:
+      POSTGRES_USER: dreamscape
+      POSTGRES_PASSWORD: dreamscape
+      POSTGRES_DB: dreamscape
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dreamscape"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.6.0-alpine
+    container_name: dreamscape-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
