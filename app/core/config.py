@@ -28,10 +28,24 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Construct async PostgreSQL URL."""
+        """Construct async PostgreSQL URL (for FastAPI app)."""
         return str(
             PostgresDsn.build(
                 scheme="postgresql+asyncpg",
+                username=self.postgres_user,
+                password=self.postgres_password,
+                host=self.postgres_host,
+                port=self.postgres_port,
+                path=self.postgres_db,
+            )
+        )
+
+    @property
+    def sync_database_url(self) -> str:
+        """Construct sync PostgreSQL URL (for Alembic migrations)."""
+        return str(
+            PostgresDsn.build(
+                scheme="postgresql+psycopg",
                 username=self.postgres_user,
                 password=self.postgres_password,
                 host=self.postgres_host,
