@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import gradio as gr
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -9,6 +10,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.database import engine
 from app.db import base  # noqa: F401 - Import models for SQLAlchemy
+from app.ui.gradio_app import gradio_ui
 
 settings = get_settings()
 
@@ -52,6 +54,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api/v1")
+
+app = gr.mount_gradio_app(app, gradio_ui, path="/ui")
 
 
 @app.get("/health", tags=["health"])

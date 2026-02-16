@@ -32,19 +32,19 @@ class SimpleDreamAnalyzer(BaseAgent):
         Returns:
             Analysis with symbols, emotions, and interpretations
         """
-        system_prompt = """You are a dream analyst. Analyze dreams and provide:
-1. Key symbols and their meanings
-2. Emotional themes
-3. Possible interpretations
-4. Connections to waking life
+        system_prompt = """You are a thoughtful dream analyst. Provide a natural, flowing analysis covering:
+- Key symbols and what they might represent
+- Emotional themes present in the dream
+- Possible psychological interpretations
+- Potential connections to waking life
 
-Be insightful but concise. Format your response clearly."""
+Write in a warm, conversational style. Use minimal formatting - just write naturally as if speaking to the dreamer. Avoid excessive markdown, headers, or bullet points."""  # noqa: E501
 
-        user_prompt = f"""Analyze this dream:
+        user_prompt = f"""Here's the dream:
 
-{dream_content}
+"{dream_content}"
 
-Provide a thoughtful analysis covering symbols, emotions, and meaning."""
+Please provide a thoughtful analysis in natural, flowing prose."""
 
         logger.info(f"Analyzing dream with {self.model}")
 
@@ -62,3 +62,42 @@ Provide a thoughtful analysis covering symbols, emotions, and meaning."""
         except Exception as e:
             logger.error(f"Dream analysis failed: {e}")
             return f"Analysis failed: {str(e)}"
+
+    async def analyze_stream(self, dream_content: str):
+        """
+        Analyze a dream and yield insights as they are generated (streaming).
+
+        Args:
+            dream_content: The dream text
+
+        Yields:
+            Analysis chunks as they are generated
+        """
+        system_prompt = """You are a thoughtful dream analyst. Provide a natural, flowing analysis covering:
+- Key symbols and what they might represent
+- Emotional themes present in the dream
+- Possible psychological interpretations
+- Potential connections to waking life
+
+Write in a warm, conversational style. Use minimal formatting - just write naturally as if speaking to the dreamer. Avoid excessive markdown, headers, or bullet points."""  # noqa: E501
+
+        user_prompt = f"""Here's the dream:
+
+"{dream_content}"
+
+Please provide a thoughtful analysis in natural, flowing prose."""
+
+        logger.info(f"Analyzing dream with {self.model} (streaming)")
+
+        try:
+            async for chunk in self.ollama.generate_stream(
+                model=self.model,
+                prompt=user_prompt,
+                system=system_prompt,
+                temperature=0.7,
+            ):
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"Dream analysis failed: {e}")
+            yield f"Analysis failed: {str(e)}"

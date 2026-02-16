@@ -28,7 +28,7 @@ class OllamaClient:
         temperature: float = 0.7,
     ) -> str:
         """
-        Generate text using Ollama.
+        Generate text using Ollama (non-streaming).
 
         Args:
             model: Model name (e.g., "qwen2.5:7b")
@@ -61,6 +61,57 @@ class OllamaClient:
 
             result = response.json()
             return result["response"]
+
+        except httpx.HTTPError as e:
+            logger.error(f"Ollama API error: {e}")
+            raise
+
+    async def generate_stream(
+        self,
+        model: str,
+        prompt: str,
+        system: str | None = None,
+        temperature: float = 0.7,
+    ):
+        """
+        Generate text using Ollama with streaming (yields tokens as they come).
+
+        Args:
+            model: Model name (e.g., "qwen2.5:7b")
+            prompt: User prompt
+            system: Optional system prompt
+            temperature: Sampling temperature
+
+        Yields:
+            Text chunks as they are generated
+        """
+        url = f"{self.base_url}/api/generate"
+
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": True,
+            "options": {
+                "temperature": temperature,
+            },
+        }
+
+        if system:
+            payload["system"] = system
+
+        logger.info(f"Calling Ollama model (streaming): {model}")
+
+        try:
+            async with self.client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+
+                async for line in response.aiter_lines():
+                    if line:
+                        import json
+
+                        data = json.loads(line)
+                        if "response" in data:
+                            yield data["response"]  # Yield each token
 
         except httpx.HTTPError as e:
             logger.error(f"Ollama API error: {e}")
