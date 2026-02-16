@@ -26,6 +26,16 @@ class Analysis(Base):
     # Which agent did this analysis?
     agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
 
+    # Agent type for workflow organization
+    agent_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="specialist"
+    )  # "generalist" | "specialist" | "synthesizer"
+
+    # Model used for this analysis (e.g., "gpt-4o-mini", "qwen2.5:7b")
+    model_used: Mapped[str] = mapped_column(
+        String(100), nullable=False, server_default="qwen2.5:7b"
+    )  # noqa: E501
+
     # The analysis content
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
