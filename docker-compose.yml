@@ -5,7 +5,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app  # Mount code for hot reload
+      - .:/app # Mount code for hot reload
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_USER=dreamscape
@@ -13,6 +13,7 @@ services:
       - POSTGRES_DB=dreamscape
       - REDIS_HOST=redis
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy

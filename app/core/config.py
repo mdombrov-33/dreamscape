@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     redis_port: int = 6379
 
     # AI Providers
-    openai_api_key: str | None = None
-    anthropic_api_key: str | None = None
+    openrouter_api_key: str | None = None
+    ollama_base_url: str = "http://localhost:11434"
 
 
 @lru_cache

@@ -31,7 +31,9 @@ async def create_dream(
     )
 
     analysis_service = AnalysisService(db)
-    await analysis_service.analyze_dream_with_agent(
+    from app.agents.simple_analyzer import SimpleDreamAnalyzer
+    await analysis_service.run_agent(
+        agent=SimpleDreamAnalyzer(),
         dream_id=created_dream.id,
         dream_content=created_dream.content,
     )
