@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.core.models_config import DEFAULT_MODEL
 from app.schemas.analysis import AnalysisRead
 
 
@@ -18,6 +19,11 @@ class DreamCreate(BaseModel):
     dream_date: datetime | None = Field(
         default=None,
         description="When the dream occurred (defaults to now if not provided)",
+    )
+
+    model: str = Field(
+        default=DEFAULT_MODEL,
+        description="LiteLLM model string to use for analysis",
     )
 
 

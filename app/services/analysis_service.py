@@ -46,6 +46,13 @@ class AnalysisService:
             content=content,
         )
 
+    async def update_analysis_score(self, analysis_id: int, score: int) -> None:
+        result = await self.db.execute(select(Analysis).where(Analysis.id == analysis_id))
+        analysis = result.scalar_one_or_none()
+        if analysis:
+            analysis.score = score
+            await self.db.commit()
+
     async def get_analyses_for_dream(self, dream_id: int) -> list[Analysis]:
         result = await self.db.execute(
             select(Analysis)

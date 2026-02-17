@@ -2,185 +2,116 @@
 
 ## Vision
 
-A multi-agent dream analysis pipeline where a rating agent (LLM-as-a-judge) automatically scores each specialist output. Weak analyses get retried with a stronger model. Over time the system builds a real dataset: which models work best at which roles, at what cost.
+A collective dream analysis platform. Every dream submitted is analyzed by a multi-agent pipeline, tagged with structured labels, and embedded into a vector space. Over time the system builds a shared dream atlas: you can find semantically similar dreams, explore recurring symbols across all submissions, and see what themes cluster together — all anonymous, no auth required.
+
+The multi-agent pipeline is the extraction layer. Specialists aren't just commentators — they produce structured signal (tags, emotion labels, theme categories) that feeds the collective database.
 
 ## Full Pipeline
 
 ```
 Dream
   ↓
-Generalist          → structured output (symbols, emotions, themes, overview)
+Generalist          → structured overview (symbols, emotions, themes)   [streams live]
   ↓
 Symbol Specialist ──┐
-Emotion Specialist ─┼── parallel, get generalist output as context
+Emotion Specialist ─┼── parallel, each streams into its own panel      [streams live]
 Theme Specialist  ──┘
   ↓
-Rating Agent        → scores each specialist 1-5 (depth, relevance, insight)
-                      score < threshold → retry with escalation model
+Rating Agent        → scores each specialist 1-5 (informational only)
   ↓
-Synthesizer         → receives best version of each, writes final interpretation
+Synthesizer         → final interpretation                              [streams live]
+  ↓
+Tag Extractor       → ["water", "falling", "anxiety", ...]             (coming)
+  ↓
+Embedder            → pgvector embedding of full analysis              (coming)
 ```
 
 All rows in `analyses` table: `dream_id`, `agent_name`, `agent_type`, `model_used`, `content`, `score`.
-
-## Model Escalation Chain
-
-```python
-ESCALATION = {
-    "ollama/qwen2.5:7b":                     "openrouter/openai/gpt-5-nano",
-    "openrouter/openai/gpt-5-nano":          "openrouter/anthropic/claude-haiku-4.5",
-    "openrouter/anthropic/claude-haiku-4.5": "openrouter/anthropic/claude-sonnet-4.5",
-}
-```
-
-Only failing analyses get escalated. Both versions saved to DB.
 
 ---
 
 ## Phase 1: MVP ✅ COMPLETE
 
-- [x] Docker Compose (PostgreSQL)
+- [x] Docker Compose (PostgreSQL + pgvector + Redis)
 - [x] FastAPI + SQLAlchemy + Alembic
-- [x] Dream and Analysis DB models (agent_type, model_used)
+- [x] Dream and Analysis DB models
 - [x] CRUD API for dreams
 - [x] BaseAgent abstract class with model parameter
-- [x] SimpleDreamAnalyzer (generalist, structured section output)
+- [x] GeneralistAgent with structured section output
 - [x] LiteLLM client (Ollama + OpenRouter)
 - [x] 6 available models in config
-- [x] Gradio UI with model dropdown and streaming
+- [x] Gradio UI with model dropdown
 
 ---
 
-## Phase 2: Multi-Agent Pipeline 🔄 IN PROGRESS
+## Phase 2: Multi-Agent Pipeline ✅ COMPLETE
 
-### 2.1 Specialist Agents ← NEXT
+- [x] Symbol / Emotion / Theme specialist agents
+- [x] SynthesizerAgent
+- [x] RatingAgent (LLM-as-a-judge, scores 1-5, informational)
+- [x] LangGraph workflow (generalist → specialists → rating → synthesizer)
+- [x] `score` column on analyses table
+- [x] Generalist streams live token by token
+- [x] Specialists stream in parallel via SSE, each into its own panel
+- [x] Synthesizer streams live after specialists complete
+- [x] Scores shown per panel after rating finishes
 
-Files: `app/agents/symbol_specialist.py`, `emotion_specialist.py`, `theme_specialist.py`
-
-Each specialist:
-- `agent_type = "specialist"`
-- Receives `context` = generalist output
-- Prompt focuses only on its domain
-- Goes deeper than the generalist's section on that topic
-
-### 2.2 Synthesizer Agent
-
-File: `app/agents/synthesizer_agent.py`
-
-- `agent_type = "synthesizer"`
-- Receives all specialist outputs as context
-- Writes final integrated interpretation
-- Good candidate for prompt caching (context will be 1000+ tokens)
-
-### 2.3 Rating Agent (LLM-as-a-judge)
-
-File: `app/agents/rating_agent.py`
-
-- `agent_type = "judge"`
-- Not a dream analyst — evaluates quality of other agents' outputs
-- Input: original dream + one specialist's analysis
-- Output: JSON scores `{"depth": 4, "relevance": 3, "insight": 4}`
-- Scores saved to `analyses` table (add `score` column)
-- Judge model stays fixed (e.g. Claude Haiku) regardless of which model did the analysis — consistency matters
-
-### 2.4 LangGraph Workflow
-
-File: `app/workflows/dream_analysis.py`
-
-**The entire pipeline is one LangGraph graph** — not just the retry part. Specialists are nodes in the graph too. This way the whole flow is in one place, state is explicit, and conditional routing is built into the graph edges.
-
-```
-generalist_node
-      ↓
-specialists_node   (symbol, emotion, theme run in parallel inside this node)
-      ↓
-rating_node        (judge scores each specialist output)
-      ↓
-[conditional edges]
-  score ≥ 3  →  synthesizer_node
-  score < 3  →  retry_node  →  rating_node  →  synthesizer_node
-```
-
-State:
-```python
-class DreamAnalysisState(TypedDict):
-    dream_id: int
-    dream: str
-    model: str
-    generalist: str
-    symbol: str
-    emotion: str
-    theme: str
-    scores: dict        # {"symbol": 4, "emotion": 2, "theme": 3}
-    retried: set        # which agents already retried (avoid infinite loop)
-    synthesis: str
-```
-
-**UI shows the graph executing in real time:**
-```
-[✅ Generalist]
-[✅ Symbol 4/5]  [⏳ Emotion...]  [✅ Theme 3/5]
-[🔄 Emotion retried with Claude Haiku → ✅ 4/5]
-[⏳ Synthesizer...]
-```
-
-Each panel fills in as its node completes. LangGraph emits events during execution — we use those to update the UI progressively.
-
-### 2.5 DB Migration
-
-Add `score` column to `analyses` table:
-```python
-score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-```
-
-Nullable — only rating agent writes it, all other agents leave it null.
-
-### 2.6 Updated UI
-
-- Show each agent's output in its own panel
-- Status indicators per agent (⏳ → ✅)
-- Show score badge next to specialist output
-- Show which analyses were retried and with which model
+**Decision log:**
+- Automatic retry on low scores was removed — LLM judging LLM is unreliable, adds latency, escalates silently to cloud. Scores are kept as display-only signal.
+- Manual retry button is planned for Phase 3 (user-triggered, explicit).
+- Streaming uses SSE (`text/event-stream`) on `/stream-analyze` endpoint. Gradio reads via `httpx` + `iter_lines()`.
 
 ---
 
-## Phase 3: Analytics
+## Phase 3: Collective Layer 🔄 NEXT
 
-### 3.1 Analytics Dashboard (new Gradio tab)
+### 3.1 Tag Extraction
 
-- Average score per model per agent type
-- Escalation rate per model ("Qwen gets escalated 55% of the time on emotion")
-- Cost per dream by configuration
-- Best performing config per agent role
+After synthesis, a lightweight agent extracts 3–5 structured tags from the dream:
+```json
+{"symbols": ["water", "bridge"], "emotions": ["anxiety", "wonder"], "themes": ["transition"]}
+```
+Store as `tags` JSONB column on dreams table (or separate tags table for querying).
+This is structured output — agent returns JSON, not prose.
 
-### 3.2 Cost Tracking
+### 3.2 Embeddings + pgvector
 
-- LiteLLM returns token counts in response metadata
-- Store `tokens_in`, `tokens_out` per analysis
-- Calculate cost from known model pricing
+Embed the full analysis (or synthesis) with a text embedding model.
+pgvector is already in the stack (`pgvector/pgvector:pg18`).
+
+Add `embedding` vector column to dreams table. After each analysis, generate and store embedding.
+
+Enables:
+- `GET /dreams/{id}/similar` — top-5 semantically similar dreams
+- UI: "Similar dreams" section on analysis page
+
+### 3.3 Explore Tab
+
+New Gradio tab showing collective patterns:
+- Tag cloud of most common symbols / emotions / themes
+- Bar charts: most frequent tags this week / all time
+- "Dreams about water" — click a tag, see all matching dreams
+- Cluster view: dreams grouped by semantic similarity
+
+### 3.4 Manual Retry
+
+Low-scored analyses (shown with score badge in UI) get a "Retry with stronger model" button.
+Calls a new endpoint: `POST /dreams/{id}/analyses/{analysis_id}/retry?model=xxx`
+Creates a new analysis row, updates the panel.
 
 ---
 
 ## Phase 4: Optional / Future
 
-- **Embeddings** — pgvector, find similar dreams
 - **Per-agent model selection** — override global model per agent in UI
-- **Auth + personal tracking** — patterns across your own dreams over time
-- **Prompt caching** — Anthropic cache_control on synthesizer (context hits 1000+ tokens)
-- **Batch export** — CSV/JSON of dreams, analyses, scores
+- **Cost tracking** — LiteLLM returns token counts; store `tokens_in`, `tokens_out` per analysis; calculate cost from known pricing
+- **Batch export** — CSV/JSON of dreams, analyses, scores, tags
+- **Prompt experimentation** — A/B different prompts per agent, compare outputs side by side
 
 ---
 
 ## Current Status
 
-**Done:**
-- Phase 1 fully complete
-- LiteLLM integrated, model dropdown in UI, structured generalist output
+**Done:** Phase 1 + Phase 2 fully complete. Pipeline streams live. Scores displayed per panel.
 
-**Next:**
-- Specialist agents (symbol, emotion, theme)
-- Synthesizer agent
-- Rating agent
-- Add `score` column to DB
-- LangGraph workflow
-- Update UI for multi-agent display
+**Next:** Phase 3.1 — tag extraction agent. Then 3.2 embeddings. Then 3.3 Explore tab.

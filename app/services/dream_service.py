@@ -57,7 +57,11 @@ class DreamService:
             List of Dream objects
         """
         result = await self.db.execute(
-            select(Dream).offset(skip).limit(limit).order_by(Dream.created_at.desc())
+            select(Dream)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Dream.created_at.desc())
+            .options(selectinload(Dream.analyses))
         )
         return result.scalars().all()
 
@@ -71,7 +75,9 @@ class DreamService:
         Returns:
             Dream object if found, None otherwise
         """
-        result = await self.db.execute(select(Dream).where(Dream.id == dream_id))
+        result = await self.db.execute(
+            select(Dream).where(Dream.id == dream_id).options(selectinload(Dream.analyses))
+        )
         return result.scalar_one_or_none()
 
     async def get_dream_with_analyses(self, dream_id: int) -> Dream | None:

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -38,6 +38,9 @@ class Analysis(Base):
 
     # The analysis content
     content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Score from rating agent (1-5 avg). Only set on specialist analyses.
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

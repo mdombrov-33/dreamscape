@@ -10,6 +10,7 @@ class AnalysisRead(BaseModel):
     agent_type: str
     model_used: str
     content: str
+    score: int | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
