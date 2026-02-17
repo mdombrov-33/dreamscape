@@ -53,6 +53,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def add_permissions_policy(request, call_next):
+    response = await call_next(request)
+    response.headers["Permissions-Policy"] = "microphone=*"
+    return response
+
 app.include_router(api_router, prefix="/api/v1")
 
 app = gr.mount_gradio_app(app, gradio_ui, path="/ui")

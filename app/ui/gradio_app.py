@@ -2,11 +2,38 @@ import json
 
 import gradio as gr
 import httpx
+import numpy as np
 from loguru import logger
 
 from app.core.models_config import DEFAULT_MODEL, DEFAULT_MODEL_LABEL, MODEL_LABELS, MODEL_MAP
 
 API_BASE = "http://localhost:8000/api/v1"
+
+_whisper = None
+
+
+def _get_whisper():
+    global _whisper
+    if _whisper is None:
+        from transformers import pipeline
+
+        logger.info("Loading Whisper model...")
+        _whisper = pipeline(
+            "automatic-speech-recognition", model="openai/whisper-small", device="cpu"
+        )  # noqa: E501
+        logger.info("Whisper loaded.")
+    return _whisper
+
+
+def transcribe_audio(audio):
+    if audio is None:
+        return ""
+    sample_rate, data = audio
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+    audio_float = data.astype(np.float32) / 32768.0
+    result: dict = _get_whisper()({"sampling_rate": sample_rate, "raw": audio_float})  # type: ignore[assignment]
+    return result["text"].strip()
 
 
 def _stars(score: int | None) -> str:
@@ -176,6 +203,12 @@ with gr.Blocks(theme="soft", title="Dreamscape") as gradio_ui:
                 value=DEFAULT_MODEL_LABEL,
             )
 
+            with gr.Row():
+                mic_input = gr.Audio(
+                    sources=["microphone"], type="numpy", label="🎙️ Record your dream"
+                )
+                transcribe_btn = gr.Button("📝 Transcribe", size="sm", scale=0)
+
             dream_input = gr.Textbox(
                 label="Dream",
                 placeholder="I was flying through a dark forest, when suddenly...",
@@ -183,12 +216,14 @@ with gr.Blocks(theme="soft", title="Dreamscape") as gradio_ui:
                 max_lines=20,
             )
 
+            transcribe_btn.click(fn=transcribe_audio, inputs=[mic_input], outputs=[dream_input])
+
             analyze_btn = gr.Button("🔮 Analyze Dream", variant="primary", size="lg")
 
             status_output = gr.Textbox(label="", lines=1, max_lines=1, show_label=False)
 
             gr.Markdown(
-                "**Pipeline:** Generalist maps the dream → Symbol / Emotion / Theme specialists go deep in parallel "
+                "**Pipeline:** Generalist maps the dream → Symbol / Emotion / Theme specialists go deep in parallel "  # noqa: E501
                 "→ Rating agent scores each (1–5) → Synthesizer combines everything."
             )
 
