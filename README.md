@@ -1,77 +1,72 @@
 # 🌙 Dreamscape
 
-> **AI Evaluation Platform** for testing different AI models and approaches on dream analysis
+> **Multi-agent AI platform** for dream analysis — compare models, track quality, explore orchestration patterns
 
 ## What Is This?
 
-Dreamscape is an **ML evaluation platform** that answers: **"Which AI approach works best for interpreting dreams?"**
+Dreamscape runs your dream through a pipeline of specialized AI agents and lets you swap the model powering each one. The goal is to see what actually produces useful analysis and at what cost.
 
-- Test **different models** (Qwen, GPT-4o, Claude) against each other
-- Compare **different prompt strategies** (Jungian, Freudian, cognitive)
-- Evaluate **orchestration patterns** (single agent vs multi-agent workflows)
-- Track **quality vs cost** tradeoffs
-
-Dreams are the perfect test case: subjective, creative, and open to interpretation.
+- Submit a dream → **Generalist** maps the landscape (symbols, emotions, themes)
+- **Specialists** go deep on each area in parallel
+- **Synthesizer** combines everything into a final interpretation
+- Any agent can run any model — local Qwen or cloud (GPT-5, Claude, Gemini)
 
 ## How It Works
 
 ```
-1. User enters dream
-2. LangGraph orchestrates multi-agent workflow:
-   - Generalist extracts symbols, emotions, themes
-   - Specialists provide deep analysis (parallel)
-   - Synthesizer combines insights
-3. Each agent can use different AI models
-4. User rates which analysis was most helpful
-5. System learns: "GPT-4o Jungian interpretation wins 80% of the time"
+Dream input
+    ↓
+Generalist        — broad first-pass (symbols, emotions, themes, overview)
+    ↓
+Symbol Specialist ─┐
+Emotion Specialist ─┼─ run in parallel, each gets generalist output as context
+Theme Specialist  ─┘
+    ↓
+Synthesizer       — combines all specialist analyses into final interpretation
 ```
+
+Each agent's output and the model used are stored in the database.
 
 ## Current Features
 
 - ✅ Dream journal with AI analysis
-- ✅ Streaming responses (watch AI think in real-time)
-- ✅ Gradio web UI
-- ✅ Local LLM support (Ollama)
+- ✅ Streaming responses
+- ✅ Gradio web UI with model dropdown
+- ✅ Local LLM support (Ollama/Qwen)
+- ✅ Cloud models via OpenRouter (GPT-5, Claude, Gemini)
+- ✅ Tracks agent type and model used per analysis
 
 ## Coming Soon
 
-- 🔄 Multi-agent LangGraph workflow
-- 🔄 Model swapping (GPT-4o, Claude, Qwen)
+- 🔄 Multi-agent LangGraph workflow (specialists + synthesizer)
+- 🔄 Side-by-side analysis display per agent
 - 🔄 Rating system
-- 🔄 Evaluation dashboard
+- 🔄 Cost and quality dashboard
 
 ## Tech Stack
 
-- **FastAPI** - API framework
-- **SQLAlchemy** - Database ORM
-- **PostgreSQL** (pgvector) - Database with vector support
-- **Gradio** - Web UI
-- **Ollama** - Local LLM inference
-- **LiteLLM** - Unified API for multiple AI providers (coming)
-- **LangGraph** - Agent orchestration (coming)
+- **FastAPI** — API
+- **SQLAlchemy + PostgreSQL** — database
+- **Gradio** — web UI (mounted at `/ui`)
+- **LiteLLM** — unified interface for Ollama, OpenAI, Anthropic, OpenRouter
+- **LangGraph** — agent orchestration
 
 ## Quick Start
 
 ```bash
-# Start services
+# Copy and fill in your OpenRouter key (optional, Qwen works locally for free)
+cp .env.example .env
+
+# Start
 docker-compose up -d
 
-# Open UI
-http://localhost:8000/ui
+# UI
+open http://localhost:8000/ui
 
 # API docs
-http://localhost:8000/docs
+open http://localhost:8000/docs
 ```
-
-## Project Goals
-
-1. **Research:** Which AI models are best at dream interpretation?
-2. **Evaluation:** Build framework for comparing AI approaches
-3. **Learning:** Explore multi-agent systems and LangGraph
-4. **Fun:** It's dreams, why not? 🌙
 
 ---
 
-**Status:** Early development • Phase 1 complete, Phase 2 in progress
-
-See `docs/roadmap.md` for full development plan.
+**Status:** Phase 1 complete, Phase 2 in progress — see `docs/roadmap.md`
