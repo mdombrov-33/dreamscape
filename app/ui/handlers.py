@@ -15,7 +15,7 @@ def _stars(score: int | None) -> str:
 
 
 def run_analysis(dream_text: str, model_label: str):
-    empty = ("", "", "", "", "", "", "", "", "")
+    empty = ("", "", "", "", "", "", "", "", "", [])
 
     if not dream_text or len(dream_text.strip()) < 10:
         yield ("❌ Please enter a longer dream (at least 10 characters)", *empty)
@@ -34,8 +34,8 @@ def run_analysis(dream_text: str, model_label: str):
         yield (f"❌ Failed to create dream: {e}", *empty)
         return
 
-    def out(status, gen="", ss="", s="", es="", e="", ts="", t="", sy=""):
-        return (status, gen, ss, s, es, e, ts, t, sy)
+    def out(status, gen="", ss="", s="", es="", e="", ts="", t="", sy="", similar=None):
+        return (status, gen, ss, s, es, e, ts, t, sy, similar or [])
 
     # Phase 2: stream generalist
     generalist_text = ""
@@ -121,6 +121,18 @@ def run_analysis(dream_text: str, model_label: str):
         )
         return
 
+    # Fetch similar dreams
+    similar_dreams = []
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(f"{API_BASE}/dreams/{dream_id}/similar?limit=3")
+            resp.raise_for_status()
+            data = resp.json()
+            # Format for Gradio Dataframe: list of lists
+            similar_dreams = [[d["id"], d["content"], d["similarity"]] for d in data]
+    except Exception as e:
+        logger.error(f"Similar dreams error: {e}")
+
     yield out(
         "✅ Complete",
         generalist_text,
@@ -131,6 +143,7 @@ def run_analysis(dream_text: str, model_label: str):
         _stars(scores.get("theme")),
         theme_text,
         synthesis_text,
+        similar_dreams,
     )
 
 

@@ -52,6 +52,14 @@ with gr.Blocks(theme="soft", title="Dreamscape") as gradio_ui:
                     theme_stars  = gr.Markdown("")
                     theme_output = gr.Textbox(label="🌀 Themes", lines=8, max_lines=20)
 
+            similar_dreams = gr.Dataframe(
+                headers=["ID", "Dream Preview", "Similarity %"],
+                datatype=["number", "str", "number"],
+                label="🔗 Similar Dreams",
+                interactive=False,
+                visible=True,
+            )
+
             analyze_btn.click(
                 fn=run_analysis,
                 inputs=[dream_input, model_dropdown],
@@ -65,6 +73,7 @@ with gr.Blocks(theme="soft", title="Dreamscape") as gradio_ui:
                     theme_stars,
                     theme_output,
                     synthesis_output,
+                    similar_dreams,
                 ],
             )
 

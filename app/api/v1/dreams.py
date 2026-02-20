@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.emotion_specialist import EmotionSpecialist
@@ -17,6 +18,7 @@ from app.core.models_config import DEFAULT_MODEL
 from app.schemas.dream import DreamCreate, DreamRead, DreamUpdate
 from app.services.analysis_service import AnalysisService
 from app.services.dream_service import DreamService
+from app.ui.embeddings import embed_text
 from app.workflows.dream_analysis import run_dream_analysis
 
 router = APIRouter()
@@ -42,7 +44,9 @@ async def stream_generalist(
     """Stream generalist analysis token by token. Saves to DB when complete."""
     dream = await DreamService(db).get_dream_by_id(dream_id)
     if not dream:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
 
     dream_content = dream.content
 
@@ -80,7 +84,9 @@ async def stream_analyze(
     """
     dream = await DreamService(db).get_dream_by_id(dream_id)
     if not dream:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
 
     analyses = await AnalysisService(db).get_analyses_for_dream(dream_id)
     generalist_row = next((a for a in analyses if a.agent_name == "generalist"), None)
@@ -187,6 +193,16 @@ async def stream_analyze(
                 content=synth_output,
             )
 
+        async with AsyncSessionLocal() as embed_db:
+            embedding = embed_text(synth_output)
+            # Convert list to pgvector format: "[0.1, 0.2, ...]"
+            embedding_str = str(embedding)
+            await embed_db.execute(
+                text("UPDATE dreams SET embedding = CAST(:emb AS vector) WHERE id = :id"),
+                {"emb": embedding_str, "id": dream_id},
+            )
+            await embed_db.commit()
+
         yield f"data: {json.dumps({'event': 'done'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
@@ -202,7 +218,9 @@ async def analyze_dream(
     dream_service = DreamService(db)
     dream = await dream_service.get_dream_by_id(dream_id)
     if not dream:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
 
     analyses = await AnalysisService(db).get_analyses_for_dream(dream_id)
     generalist_row = next((a for a in analyses if a.agent_name == "generalist"), None)
@@ -235,7 +253,9 @@ async def get_dream(
 ):
     dream = await DreamService(db).get_dream_by_id(dream_id)
     if not dream:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
     return dream
 
 
@@ -251,7 +271,9 @@ async def update_dream(
         dream_date=dream_update.dream_date,
     )
     if not updated:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
     return updated
 
 
@@ -262,5 +284,48 @@ async def delete_dream(
 ):
     success = await DreamService(db).delete_dream(dream_id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
     return None
+
+
+@router.get("/dreams/{dream_id}/similar")
+async def get_similar_dreams(
+    dream_id: int,
+    limit: Annotated[int, Query(ge=1, le=10)] = 3,
+    db: AsyncSession = Depends(get_db),
+):
+    """Find dreams with similar synthesis embeddings using pgvector cosine distance."""
+
+    dream = await DreamService(db).get_dream_by_id(dream_id)
+    if not dream:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Dream {dream_id} not found"
+        )
+
+    result = await db.execute(text("SELECT embedding FROM dreams WHERE id = :id"), {"id": dream_id})
+    row = result.fetchone()
+    if not row or not row[0]:
+        return []
+
+    # Find similar dreams by cosine distance
+    query = text("""
+        SELECT id, content, 1 - (embedding <=> CAST(:target AS vector)) as similarity
+        FROM dreams
+        WHERE id != :dream_id AND embedding IS NOT NULL
+        ORDER BY embedding <=> CAST(:target AS vector)
+        LIMIT :limit
+    """)
+
+    result = await db.execute(query, {"target": row[0], "dream_id": dream_id, "limit": limit})
+    rows = result.fetchall()
+
+    return [
+        {
+            "id": r[0],
+            "content": r[1][:100] + ("..." if len(r[1]) > 100 else ""),
+            "similarity": round(float(r[2]) * 100),
+        }
+        for r in rows
+    ]
